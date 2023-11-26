@@ -105,7 +105,7 @@ public class employee {
                     drug_name = res.getString("drug_name");
                     type = res.getString("type");
                     String query1 = "SELECT SUM(quantity) AS total_quantity FROM drug WHERE code = '" + code
-                            + "' GROUP BY code";
+                            + "' and batch_no = '" + batch_no + "' GROUP BY code";
                     ResultSet x = db.executeQuery(query1);
 
                     if (x.next()) {
@@ -125,7 +125,6 @@ public class employee {
             System.out.println("Enter quantity");
             String s2 = input.nextLine();
             quantity = Integer.parseInt(s2);
-            System.out.println("Quantity " + quantity);
             if (quantity == -1) {
                 return;
             }
@@ -179,7 +178,7 @@ public class employee {
                 }
             }
 
-            System.out.println("1. Add Another drug data");
+            System.out.println("1. Add/Edit Another drug data");
             System.out.println("-1. Back");
             String in = input.nextLine();
             while (true) {
