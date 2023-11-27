@@ -61,13 +61,13 @@ public class authentication {
 
                 while (true) {
                     System.out.print("Password: ");
-                    passWord = input.nextLine();
-                    if (passWord.equals("-1")) {
+                    String password = input.nextLine();
+                    if (password.equals("-1")) {
                         s[0] = back;
                         clear.clearConsole();
                         return s;
                     }
-                    if (passWord.equals(res.getString("password"))) {
+                    if (password.equals(res.getString("password"))) {
                         s[0] = approve;
                         s[1] = "" + Id;
                         clear.clearConsole();
