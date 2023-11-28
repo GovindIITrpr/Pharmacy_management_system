@@ -90,9 +90,8 @@ public class employee {
 
                 query = "SELECT * FROM drug WHERE code = '" + code + "' and batch_no = '" + batch_no + "'";
                 res = db.executeQuery(query);
-
                 if (!res.next()) {
-                    System.out.println("Drug is not available. Returning to last menu ...");
+                    System.out.println("Drug is not available or expired. Returning to last menu ...");
                     try {
                         Thread.sleep(3000); // Sleep for 5 seconds (5000 milliseconds)
                     } catch (InterruptedException e) {
@@ -110,7 +109,10 @@ public class employee {
 
                     if (x.next()) {
                         int count = x.getInt("total_quantity");
-                        System.out.println("Drug is available. Total available Quantity is " + count);
+                        if (count >= 0)
+                            System.out.println("Drug is available. Total available Quantity is " + count);
+                        else
+                            System.out.println("Drug is not available. Returning to last menu ...");
                     } else {
                         System.out.println("Error retrieving quantity information.");
                     }
@@ -142,7 +144,7 @@ public class employee {
             }
 
             double price = quantity * selling_price;
-            query = "INSERT INTO sales (company_name, drug_name, type, code, batch_no, selling_price, quantity, date, price, customer, employee_id) VALUES('"
+            query = "INSERT INTO sales_buffer (company_name, drug_name, type, code, batch_no, selling_price, quantity, date, price, customer, employee_id) VALUES('"
                     + C_name + "','" + drug_name + "','" + type + "','" + code + "','" + batch_no + "','"
                     + selling_price + "','" + quantity + "','" + date + "','"
                     + price + "','" + customer + "','"
@@ -151,9 +153,9 @@ public class employee {
                 int x = db.executeUpdate(query);
                 con.commit();
                 if (x == 1) {
-                    System.out.println("Drug information added to sales successfully.");
+                    System.out.println("Drug information added to Buffer successfully.");
                 } else {
-                    System.out.println("Error adding drug information to sales.");
+                    System.out.println("Error adding drug information to Buffer.");
                 }
             } catch (SQLException e) {
                 // Handle the specific exception for an expired employee license
@@ -197,6 +199,7 @@ public class employee {
 
     private static void receipt() throws SQLException {
         while (true) {
+            con.setAutoCommit(false);
             String query = "SELECT * FROM employee WHERE employee_id = '" + employee_id + "'";
             ResultSet resultSet = db.executeQuery(query);
 
@@ -237,9 +240,45 @@ public class employee {
                 return;
             }
 
-            LocalDateTime currentDate = LocalDateTime.now();
-
             try {
+                try {
+                    // Assuming you have a column named "id" in both tables that auto-increments
+                    query = "INSERT INTO sales (customer, company_name, drug_name, type, code, batch_no, selling_price, quantity, date, price, employee_id) "
+                            +
+                            "SELECT customer, company_name, drug_name, type, code, batch_no, selling_price, quantity, date, price, employee_id "
+                            +
+                            "FROM sales_buffer " +
+                            "WHERE customer = '" + name + "' AND date = '" + date + "' AND employee_id = "
+                            + employee_id;
+
+                    int rowsAffected = db.executeUpdate(query);
+
+                    // Check if any rows were inserted
+                    if (rowsAffected > 0) {
+                        System.out.println(rowsAffected + " rows inserted into sales table.");
+                    } else {
+                        System.out.println("No data to insert into sales table.");
+                    }
+
+                    // Delete from sales_buffer after inserting into sales
+                    query = "DELETE FROM sales_buffer WHERE customer = '" + name + "' AND date = '" + date
+                            + "' AND employee_id = " + employee_id;
+                    db.executeUpdate(query);
+
+                    // Commit the transaction after both insert and delete operations
+                    con.commit();
+
+                } catch (SQLException e) {
+                    System.out.println(
+                            "Your license for issuing the medicine is expired. Log out and contact administration.");
+                    try {
+                        Thread.sleep(3000); // Sleep for 3 seconds (10000 milliseconds)
+                    } catch (InterruptedException e1) {
+                    }
+                    con.rollback();
+                    break;
+                }
+
                 query = "SELECT * FROM sales WHERE customer = '" + name + "' and date = '" + date + "'";
                 ResultSet rs1 = db.executeQuery(query);
                 System.out.println("Date: " + date);
@@ -269,6 +308,7 @@ public class employee {
                 System.out.println(discount + " rs.");
                 System.out.print("Payable amount" + "\t\t\t\t\t");
                 System.out.println(payableAmount + " rs.");
+                String delete;
 
                 System.out.println("1. Make another receipt for another user");
                 System.out.println("-1. Back");
@@ -286,14 +326,17 @@ public class employee {
                 }
             } catch (SQLException e) {
                 // Exception handling code
+                query = "DELETE FROM sales_buffer WHERE customer = '" + name + "' AND date = '" + date
+                        + "' AND employee_id = " + employee_id;
+                db.executeUpdate(query);
+                con.commit();
                 System.out.println(
                         "Your license for issuing the medicine is expired. Log out and contact administration.");
                 try {
                     Thread.sleep(3000); // Sleep for 3 seconds (10000 milliseconds)
                 } catch (InterruptedException e1) {
-                    e1.printStackTrace(); // Handle the exception if needed
                 }
-                return;
+                break;
             }
         }
     }
@@ -316,10 +359,10 @@ public class employee {
         String q = "Select * from employee where employee_id = '" + employee_id + "';";
         ResultSet r = db.executeQuery(q);
         r.next();
-        name = r.getString("name");
+        String e_name = r.getString("name");
         while (true) {
             clear.clearConsole();
-            System.out.println("Login as a Employee, Welcome : " + name);
+            System.out.println("Login as a Employee, Welcome : " + e_name);
             System.out.println("Home Dashboard!");
             System.out.println("1. issue the drug ");
             System.out.println("2. make the receipt for user ");
